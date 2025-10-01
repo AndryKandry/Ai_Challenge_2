@@ -1,8 +1,6 @@
-package org.kozyrev
+package org.kozyrev.claude
 
 import kotlinx.coroutines.runBlocking
-import org.kozyrev.claude.ClaudeClient
-import org.kozyrev.claude.ConversationManager
 import java.util.logging.Logger
 
 class ChatManager(

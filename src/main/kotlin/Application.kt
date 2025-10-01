@@ -1,12 +1,17 @@
 package org.kozyrev
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import org.kozyrev.claude.ChatManager
 import org.kozyrev.claude.ClaudeClientBuilder
-import org.kozyrev.claude.ClaudeException
+import org.kozyrev.ui.ChatScreen
 import java.io.File
 import java.util.*
 import java.util.logging.Logger
 
-fun main(args: Array<String>) {
+fun main() {
     val propertiesFile = File("local.properties")
     val properties = Properties()
     properties.load(propertiesFile.inputStream())
@@ -25,21 +30,20 @@ fun main(args: Array<String>) {
         .defaultMaxTokens(1024)
         .build()
 
-    client.use { claude ->
-        try {
-            val chatManager = ChatManager(client, systemPrompt = "Ты - helpful AI assistant")
-            chatManager.startChat()
-        } catch (e: ClaudeException.AuthenticationException) {
-            logger.severe("Ошибка аутентификации: ${e.message}")
-        } catch (e: ClaudeException.RateLimitException) {
-            logger.warning("Превышен лимит запросов: ${e.message}")
-            e.retryAfter?.let {
-                logger.info("Можно повторить через $it секунд")
-            }
-        } catch (e: ClaudeException.NetworkException) {
-            logger.warning("Сетевая ошибка: ${e.message}")
-        } catch (e: ClaudeException) {
-            logger.severe("Ошибка Claude API: ${e.message}")
+    // Создание ChatManager
+    val chatManager = ChatManager(client, systemPrompt = "Ты - helpful AI assistant")
+
+    // Запуск GUI приложения
+    application {
+        Window(
+            onCloseRequest = {
+                client.close()
+                exitApplication()
+            },
+            title = "Claude AI Chat",
+            state = rememberWindowState(width = 800.dp, height = 600.dp)
+        ) {
+            ChatScreen(chatManager)
         }
     }
 }

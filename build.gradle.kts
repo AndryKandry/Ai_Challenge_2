@@ -2,13 +2,15 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.compose)
 }
 
 group = "org.kozyrev"
 version = "0.0.1"
 
 application {
-    mainClass = "io.ktor.server.netty.EngineMain"
+    mainClass = "org.kozyrev.ApplicationKt"
 }
 
 dependencies {
@@ -27,6 +29,16 @@ dependencies {
     implementation(libs.ktor.client.logging)
 
     implementation(libs.logback.classic)
+
+    // Compose for Desktop
+    implementation(compose.runtime)
+    implementation(compose.ui)
+    implementation(compose.foundation)
+    implementation(compose.material)
+    implementation(compose.material3)
+    implementation(compose.components.resources)
+    implementation(compose.components.uiToolingPreview)
+    implementation(compose.desktop.currentOs)
 
     testImplementation(libs.kotlin.test.junit)
 }
