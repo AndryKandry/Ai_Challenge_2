@@ -1,6 +1,7 @@
 package org.kozyrev.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.kozyrev.claude.ChatManager
+import org.kozyrev.claude.ChatMode
 import org.kozyrev.claude.Message
 
 @Composable
@@ -23,6 +25,7 @@ fun ChatScreen(chatManager: ChatManager) {
     var messageText by remember { mutableStateOf("") }
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var currentMode by remember { mutableStateOf(ChatMode.SIMPLE) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -33,13 +36,67 @@ fun ChatScreen(chatManager: ChatManager) {
                 .background(Color(0xFFF5F5F5))
                 .padding(16.dp)
         ) {
-            // Заголовок
-            Text(
-                text = "Claude AI Chat",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            // Заголовок и индикатор режима
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Claude AI Chat",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (currentMode == ChatMode.JSON) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
+                    modifier = Modifier.clickable {
+                        // Переключаем режим
+                        val newMode = if (currentMode == ChatMode.SIMPLE) ChatMode.JSON else ChatMode.SIMPLE
+                        chatManager.setChatMode(newMode)
+                        currentMode = newMode
+                    }
+                ) {
+                    Text(
+                        text = if (currentMode == ChatMode.JSON) "JSON режим" else "Обычный режим",
+                        fontSize = 12.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            // Подсказки по командам
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFE3F2FD),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "Доступные команды:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1976D2)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "/simple_chat - переключиться на обычный режим",
+                        fontSize = 11.sp,
+                        color = Color(0xFF1976D2)
+                    )
+                    Text(
+                        text = "/json_chat - переключиться на JSON режим (ответы в формате JSON, как приходят от LLM)",
+                        fontSize = 11.sp,
+                        color = Color(0xFF1976D2)
+                    )
+                }
+            }
 
             // Область сообщений
             LazyColumn(
@@ -50,7 +107,7 @@ fun ChatScreen(chatManager: ChatManager) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { message ->
-                    MessageBubble(message)
+                    MessageBubble(message, chatManager)
                 }
             }
 
@@ -76,6 +133,21 @@ fun ChatScreen(chatManager: ChatManager) {
                         if (messageText.isNotBlank() && !isLoading) {
                             val userMessage = messageText.trim()
                             messageText = ""
+
+                            // Проверка на команды переключения режима
+                            when (userMessage) {
+                                "/simple_chat" -> {
+                                    chatManager.setChatMode(ChatMode.SIMPLE)
+                                    currentMode = ChatMode.SIMPLE
+                                    return@Button
+                                }
+                                "/json_chat" -> {
+                                    chatManager.setChatMode(ChatMode.JSON)
+                                    currentMode = ChatMode.JSON
+                                    return@Button
+                                }
+                            }
+
                             isLoading = true
 
                             scope.launch {
@@ -88,6 +160,17 @@ fun ChatScreen(chatManager: ChatManager) {
                                 } catch (e: Exception) {
                                     // Обработка ошибок
                                     e.printStackTrace()
+                                    // Добавляем сообщение об ошибке в историю
+                                    val errorMessage = """
+                                        ⚠️ Произошла ошибка при получении ответа: ${e.message}
+
+                                        Пожалуйста, попробуйте задать вопрос ещё раз.
+                                    """.trimIndent()
+                                    // Создаем сообщение об ошибке и обновляем список
+                                    messages = messages + org.kozyrev.claude.Message(
+                                        role = "assistant",
+                                        content = errorMessage
+                                    )
                                 } finally {
                                     isLoading = false
                                 }
@@ -112,11 +195,18 @@ fun ChatScreen(chatManager: ChatManager) {
 }
 
 @Composable
-fun MessageBubble(message: Message) {
+fun MessageBubble(message: Message, chatManager: ChatManager) {
     val isUser = message.role == "user"
     val backgroundColor = if (isUser) Color(0xFF2196F3) else Color(0xFFE0E0E0)
     val textColor = if (isUser) Color.White else Color.Black
     val alignment = if (isUser) Alignment.BottomEnd else Alignment.BottomStart
+
+    // Форматируем контент в зависимости от роли и режима
+    val displayContent = if (isUser) {
+        message.content
+    } else {
+        chatManager.formatResponse(message.content)
+    }
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -140,7 +230,7 @@ fun MessageBubble(message: Message) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = message.content,
+                    text = displayContent,
                     color = textColor,
                     fontSize = 14.sp
                 )
