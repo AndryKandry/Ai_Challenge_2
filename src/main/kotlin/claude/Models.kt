@@ -16,7 +16,8 @@ data class ClaudeRequest(
 @Serializable
 data class Message(
     val role: String,
-    val content: String
+    val content: String,
+    @SerialName("is_system_message") val isSystemMessage: Boolean = false
 )
 
 @Serializable

@@ -15,10 +15,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.launch
 import org.kozyrev.claude.ChatManager
 import org.kozyrev.claude.ChatMode
 import org.kozyrev.claude.Message
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import coil3.compose.AsyncImage
 
 @Composable
 fun ChatScreen(chatManager: ChatManager) {
@@ -44,11 +48,18 @@ fun ChatScreen(chatManager: ChatManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Claude AI Chat",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column {
+                    Text(
+                        text = "🍳 Кулинарный Помощник",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "AI помощник для приготовления блюд",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -69,31 +80,53 @@ fun ChatScreen(chatManager: ChatManager) {
                 }
             }
 
-            // Подсказки по командам
+            // Подсказки по использованию
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFE3F2FD),
+                color = Color(0xFFFFF3E0),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
+                    .drawWithContent {
+                        val heightPx = 1f
+                        drawContent()
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.12f),
+                            start = Offset(0f, size.height),
+                            end = Offset(size.width, size.height),
+                            strokeWidth = heightPx
+                        )
+                    }
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Доступные команды:",
+                        text = "💡 Как пользоваться:",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1976D2)
+                        color = Color(0xFFE65100)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "/simple_chat - переключиться на обычный режим",
+                        text = "• Расскажите, что хотите приготовить (суп, второе, кашу)",
                         fontSize = 11.sp,
-                        color = Color(0xFF1976D2)
+                        color = Color(0xFFE65100)
                     )
                     Text(
-                        text = "/json_chat - переключиться на JSON режим (ответы в формате JSON, как приходят от LLM)",
+                        text = "• Укажите доступные ингредиенты и способы приготовления",
                         fontSize = 11.sp,
-                        color = Color(0xFF1976D2)
+                        color = Color(0xFFE65100)
+                    )
+                    Text(
+                        text = "• Получите 2-3 готовых рецепта с подробными инструкциями",
+                        fontSize = 11.sp,
+                        color = Color(0xFFE65100)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Команды: /simple_chat (обычный режим), /json_chat (JSON режим)",
+                        fontSize = 10.sp,
+                        color = Color(0xFFE65100).copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Light
                     )
                 }
             }
@@ -123,7 +156,7 @@ fun ChatScreen(chatManager: ChatManager) {
                     value = messageText,
                     onValueChange = { messageText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Введите сообщение...") },
+                    placeholder = { Text("Например: Хочу приготовить суп...") },
                     enabled = !isLoading,
                     maxLines = 3
                 )
@@ -167,9 +200,10 @@ fun ChatScreen(chatManager: ChatManager) {
                                         Пожалуйста, попробуйте задать вопрос ещё раз.
                                     """.trimIndent()
                                     // Создаем сообщение об ошибке и обновляем список
-                                    messages = messages + org.kozyrev.claude.Message(
+                                    messages = messages + Message(
                                         role = "assistant",
-                                        content = errorMessage
+                                        content = errorMessage,
+                                        isSystemMessage = true
                                     )
                                 } finally {
                                     isLoading = false
@@ -202,10 +236,19 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
     val alignment = if (isUser) Alignment.BottomEnd else Alignment.BottomStart
 
     // Форматируем контент в зависимости от роли и режима
-    val displayContent = if (isUser) {
+    val displayContent = if (isUser || message.isSystemMessage) {
+        // Для пользователя и системных сообщений выводим как есть
         message.content
     } else {
+        // Для сообщений от LLM форматируем через chatManager
         chatManager.formatResponse(message.content)
+    }
+
+    // Извлекаем изображения только для сообщений от LLM
+    val images = if (!isUser && !message.isSystemMessage) {
+        chatManager.extractImages(message.content)
+    } else {
+        emptyList()
     }
 
     Box(
@@ -216,14 +259,14 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
             shape = RoundedCornerShape(12.dp),
             color = backgroundColor,
             modifier = Modifier
-                .widthIn(max = 400.dp)
+                .widthIn(max = 500.dp)
                 .padding(4.dp)
         ) {
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
                 Text(
-                    text = if (isUser) "Вы" else "Claude",
+                    text = if (isUser) "Вы" else "🍳 Кулинарный Помощник",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = textColor.copy(alpha = 0.7f)
@@ -234,6 +277,22 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
                     color = textColor,
                     fontSize = 14.sp
                 )
+
+                // Отображение изображений
+                if (images.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    images.forEach { imageUrl ->
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = "Изображение рецепта",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .padding(vertical = 4.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
             }
         }
     }

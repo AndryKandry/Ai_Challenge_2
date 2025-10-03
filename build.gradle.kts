@@ -40,5 +40,9 @@ dependencies {
     implementation(compose.components.uiToolingPreview)
     implementation(compose.desktop.currentOs)
 
+    // Coil для загрузки изображений
+    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
+    implementation("io.coil-kt.coil3:coil-network-ktor3:3.0.4")
+
     testImplementation(libs.kotlin.test.junit)
 }
