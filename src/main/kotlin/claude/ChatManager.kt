@@ -15,7 +15,7 @@ enum class ChatMode {
 data class JsonResponse(
     val question: String,
     val answer: String,
-    val images: List<String>? = null // URL изображений рецептов
+    val images: List<String>? = null
 )
 
 class ChatManager(
@@ -25,46 +25,26 @@ class ChatManager(
     private val logger = Logger.getLogger(ChatManager::class.java.name)
     private val conversationManager = ConversationManager()
     private var chatMode = ChatMode.SIMPLE
+    private var temperature: Double = 1.0
 
     private val jsonSystemPrompt = """
-        Ты - дружелюбный кулинарный помощник, AI версия кулинарной книги.
+        Ты - дружелюбный AI помощник.
 
         Твоя роль:
-        1. Помогать пользователям с приготовлением блюд
-        2. Задавать уточняющие вопросы о вкусовых предпочтениях
-        3. Узнавать доступные ингредиенты и способы приготовления
-        4. Предлагать 2-3 готовых рецепта с подробным описанием
-
-        Алгоритм общения:
-        - Если пользователь хочет поесть, узнай: какое блюдо (каша/суп/второе), с мясом или без
-        - Спроси о доступных ингредиентах
-        - Уточни способы приготовления (жарка/тушение/варка/запекание)
-        - После минимум 5 уточнений предложи готовые рецепты
-
-        Если пользователь пишет НЕ о готовке:
-        - Вежливо верни его к кулинарной теме
-        - Напомни, что ты специализируешься на помощи с приготовлением блюд
+        1. Помогать пользователям с их вопросами
+        2. Задавать уточняющие вопросы при необходимости
+        3. Давать подробные и полезные ответы
+        4. Быть вежливым и конструктивным
 
         Отвечай СТРОГО в формате JSON:
         {
             "question": "краткая формулировка вопроса пользователя",
-            "answer": "твой ответ (уточняющий вопрос или рецепты с форматированием)",
-            "images": ["url1", "url2"] // опционально, только для готовых рецептов
+            "answer": "твой ответ с форматированием при необходимости",
+            "images": ["url1", "url2"] // опционально, если релевантно
         }
-        
-        В JSON ответах ОБЯЗАТЕЛЬНО должны быть поля question и answer. 
-        Даже в том случае, когда сообщение пользователя выбивается из темы.
-        ВСЕГДА возвращай JSON объект ранее описанного формата.
 
-        Для рецептов форматируй answer так:
-        === РЕЦЕПТ 1: Название ===
-        Ингредиенты:
-        - ингредиент 1
-        - ингредиент 2
-
-        Приготовление:
-        1. Шаг 1
-        2. Шаг 2
+        В JSON ответах ОБЯЗАТЕЛЬНО должны быть поля question и answer.
+        ВСЕГДА возвращай JSON объект указанного формата.
 
         Не добавляй текста до/после JSON. Только валидный JSON объект.
     """.trimIndent()
@@ -81,7 +61,8 @@ class ChatManager(
         // Всегда используем jsonSystemPrompt для получения структурированного ответа
         val response = client.sendConversation(
             messages = conversationManager.getMessages(),
-            systemPrompt = jsonSystemPrompt
+            systemPrompt = jsonSystemPrompt,
+            temperature = temperature
         )
 
         // Извлекаем текст ответа
@@ -183,6 +164,20 @@ class ChatManager(
      * Получает текущий режим чата
      */
     fun getChatMode(): ChatMode = chatMode
+
+    /**
+     * Устанавливает температуру для запросов к LLM
+     */
+    fun setTemperature(temp: Double) {
+        require(temp in 0.0..1.0) { "Temperature must be between 0.0 and 1.0" }
+        temperature = temp
+        logger.info("Температура изменена на: $temp")
+    }
+
+    /**
+     * Получает текущую температуру
+     */
+    fun getTemperature(): Double = temperature
 
     /**
      * Запускает интерактивный чат с пользователем

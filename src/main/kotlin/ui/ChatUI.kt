@@ -22,7 +22,11 @@ import org.kozyrev.claude.ChatMode
 import org.kozyrev.claude.Message
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.*
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 @Composable
 fun ChatScreen(chatManager: ChatManager) {
@@ -30,8 +34,28 @@ fun ChatScreen(chatManager: ChatManager) {
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var currentMode by remember { mutableStateOf(ChatMode.SIMPLE) }
+    var temperature by remember { mutableStateOf(1.0f) }
+    var temperatureText by remember { mutableStateOf("1.0") }
+    var temperatureUpdateJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+
+    // Функция для валидации и применения температуры
+    fun applyTemperature() {
+        temperatureText.toDoubleOrNull()?.let { value ->
+            val validatedValue = when {
+                value < 0.0 -> 0.0
+                value > 1.0 -> 1.0
+                else -> (value * 10).toInt() / 10.0 // Округление до 1 знака
+            }
+            temperature = validatedValue.toFloat()
+            temperatureText = validatedValue.toString()
+            chatManager.setTemperature(validatedValue)
+        } ?: run {
+            // Если введено невалидное значение, возвращаем текущее
+            temperatureText = temperature.toString()
+        }
+    }
 
     MaterialTheme {
         Column(
@@ -50,12 +74,12 @@ fun ChatScreen(chatManager: ChatManager) {
             ) {
                 Column {
                     Text(
-                        text = "🍳 Кулинарный Помощник",
+                        text = "AI Помощник",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "AI помощник для приготовления блюд",
+                        text = "Дружелюбный AI ассистент",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
@@ -80,6 +104,91 @@ fun ChatScreen(chatManager: ChatManager) {
                 }
             }
 
+            // Управление температурой
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFE3F2FD),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "🌡️ Температура модели",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1565C0)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Slider(
+                            value = temperature,
+                            onValueChange = { newValue ->
+                                temperature = newValue
+                                val roundedValue = ((newValue * 10).toInt() / 10.0)
+                                temperatureText = roundedValue.toString()
+                                chatManager.setTemperature(roundedValue)
+                            },
+                            valueRange = 0f..1f,
+                            steps = 9,
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF1976D2),
+                                activeTrackColor = Color(0xFF1976D2),
+                                inactiveTrackColor = Color(0xFFBBDEFB)
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = temperatureText,
+                            onValueChange = { newText ->
+                                temperatureText = newText
+
+                                // Отменяем предыдущий таймер
+                                temperatureUpdateJob?.cancel()
+
+                                // Запускаем новый таймер на 1 секунду
+                                temperatureUpdateJob = scope.launch {
+                                    delay(1000)
+                                    applyTemperature()
+                                }
+                            },
+                            modifier = Modifier
+                                .width(80.dp)
+                                .onKeyEvent { keyEvent ->
+                                    if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Enter) {
+                                        temperatureUpdateJob?.cancel()
+                                        applyTemperature()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                                .onFocusChanged { focusState ->
+                                    if (!focusState.isFocused) {
+                                        temperatureUpdateJob?.cancel()
+                                        applyTemperature()
+                                    }
+                                },
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                        )
+                    }
+
+                    Text(
+                        text = "0 = более точные ответы, 1 = более креативные",
+                        fontSize = 10.sp,
+                        color = Color(0xFF1565C0).copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
             // Подсказки по использованию
             Surface(
                 shape = RoundedCornerShape(8.dp),
@@ -100,24 +209,24 @@ fun ChatScreen(chatManager: ChatManager) {
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "💡 Как пользоваться:",
+                        text = "Как пользоваться:",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFE65100)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "• Расскажите, что хотите приготовить (суп, второе, кашу)",
+                        text = "• Задавайте любые вопросы AI помощнику",
                         fontSize = 11.sp,
                         color = Color(0xFFE65100)
                     )
                     Text(
-                        text = "• Укажите доступные ингредиенты и способы приготовления",
+                        text = "• Получайте подробные и полезные ответы",
                         fontSize = 11.sp,
                         color = Color(0xFFE65100)
                     )
                     Text(
-                        text = "• Получите 2-3 готовых рецепта с подробными инструкциями",
+                        text = "• Используйте температуру для управления стилем ответов",
                         fontSize = 11.sp,
                         color = Color(0xFFE65100)
                     )
@@ -156,7 +265,7 @@ fun ChatScreen(chatManager: ChatManager) {
                     value = messageText,
                     onValueChange = { messageText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Например: Хочу приготовить суп...") },
+                    placeholder = { Text("Введите ваш вопрос...") },
                     enabled = !isLoading,
                     maxLines = 3
                 )
@@ -266,7 +375,7 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
                 modifier = Modifier.padding(12.dp)
             ) {
                 Text(
-                    text = if (isUser) "Вы" else "🍳 Кулинарный Помощник",
+                    text = if (isUser) "Вы" else "AI Помощник",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = textColor.copy(alpha = 0.7f)
@@ -284,7 +393,7 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
                     images.forEach { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
-                            contentDescription = "Изображение рецепта",
+                            contentDescription = "Изображение",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp)

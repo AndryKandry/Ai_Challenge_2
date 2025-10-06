@@ -16,9 +16,6 @@ application {
 dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.server.core)
-//    implementation(libs.ktor.server.netty)
-//    implementation(libs.ktor.server.config.yaml)
-//    testImplementation(libs.ktor.server.test.host)
 
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.core)
@@ -41,8 +38,8 @@ dependencies {
     implementation(compose.desktop.currentOs)
 
     // Coil для загрузки изображений
-    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
-    implementation("io.coil-kt.coil3:coil-network-ktor3:3.0.4")
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
 
     testImplementation(libs.kotlin.test.junit)
 }
