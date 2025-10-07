@@ -1,5 +1,9 @@
 package org.kozyrev
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -7,6 +11,7 @@ import androidx.compose.ui.window.rememberWindowState
 import org.kozyrev.claude.ChatManager
 import org.kozyrev.claude.ClaudeClientBuilder
 import org.kozyrev.ui.ChatScreen
+import org.kozyrev.ui.ModelComparisonScreen
 import java.util.logging.Logger
 
 fun main() {
@@ -33,10 +38,37 @@ fun main() {
                 client.close()
                 exitApplication()
             },
-            title = "Claude AI Chat",
-            state = rememberWindowState(width = 800.dp, height = 600.dp)
+            title = "Claude AI Chat & Model Comparison",
+            state = rememberWindowState(width = 1000.dp, height = 700.dp)
         ) {
-            ChatScreen(chatManager)
+            MainScreen(chatManager)
+        }
+    }
+}
+
+@Composable
+fun MainScreen(chatManager: ChatManager) {
+    var selectedTab by remember { mutableStateOf(0) }
+
+    MaterialTheme {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("💬 Чат") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("🔬 Сравнение моделей") }
+                )
+            }
+
+            when (selectedTab) {
+                0 -> ChatScreen(chatManager)
+                1 -> ModelComparisonScreen()
+            }
         }
     }
 }

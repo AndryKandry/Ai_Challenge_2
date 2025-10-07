@@ -19,7 +19,7 @@ data class JsonResponse(
 )
 
 class ChatManager(
-    private val client: ClaudeClient,
+    private val client: AIClient,
     private val systemPrompt: String? = null
 ) {
     private val logger = Logger.getLogger(ChatManager::class.java.name)
@@ -54,7 +54,7 @@ class ChatManager(
     /**
      * Отправляет сообщение пользователя и получает ответ от AI
      */
-    suspend fun sendMessage(userMessage: String): String {
+    suspend fun sendMessage(userMessage: String): AIResponse {
         // Добавляем сообщение пользователя в историю
         conversationManager.addUserMessage(userMessage)
 
@@ -65,19 +65,13 @@ class ChatManager(
             temperature = temperature
         )
 
-        // Извлекаем текст ответа
-        val assistantMessage = response.content.firstOrNull()?.text
-            ?: throw IllegalStateException("Пустой ответ от API")
-
         // Добавляем ответ ассистента в историю
-        conversationManager.addAssistantMessage(assistantMessage)
+        conversationManager.addAssistantMessage(response.content)
 
-        // Логируем статистику токенов
-        response.usage?.let { usage ->
-            logger.info("Токены - Вход: ${usage.inputTokens}, Выход: ${usage.outputTokens}")
-        }
+        // Логируем статистику
+        logger.info("${response.providerName} (${response.modelName}): ${response.metrics}")
 
-        return assistantMessage
+        return response
     }
 
     /**
@@ -131,7 +125,7 @@ class ChatManager(
     /**
      * Синхронная версия отправки сообщения
      */
-    fun sendMessageSync(userMessage: String): String = runBlocking {
+    fun sendMessageSync(userMessage: String): AIResponse = runBlocking {
         sendMessage(userMessage)
     }
 
@@ -216,8 +210,8 @@ class ChatManager(
 
             try {
                 val response = sendMessageSync(userInput)
-                val formattedResponse = formatResponse(response)
-                println("\nClaude: $formattedResponse")
+                val formattedResponse = formatResponse(response.content)
+                println("\n${response.providerName}: $formattedResponse")
             } catch (e: Exception) {
                 logger.severe("Ошибка: ${e.message}")
                 println("\nОшибка: ${e.message}")

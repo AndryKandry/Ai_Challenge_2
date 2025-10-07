@@ -18,8 +18,11 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import java.util.logging.Level
 import java.util.logging.Logger
+import kotlin.system.measureTimeMillis
+import org.kozyrev.claude.AIClient
 
-class ClaudeClient(private val config: ClaudeConfig) : AutoCloseable {
+
+class ClaudeClient(private val config: ClaudeConfig) : AIClient {
     private val logger = Logger.getLogger(ClaudeClient::class.java.name)
 
     private val client = HttpClient(CIO) {
@@ -40,20 +43,23 @@ class ClaudeClient(private val config: ClaudeConfig) : AutoCloseable {
         expectSuccess = false
     }
 
-    suspend fun sendConversation(
+    override suspend fun sendConversation(
         messages: List<Message>,
-        model: String = config.defaultModel,
-        maxTokens: Int = config.defaultMaxTokens,
-        systemPrompt: String? = null,
-        temperature: Double? = null
-    ): ClaudeResponse {
+        model: String?,
+        maxTokens: Int?,
+        systemPrompt: String?,
+        temperature: Double?
+    ): AIResponse {
+        val modelToUse = model ?: config.defaultModel
+        val maxTokensToUse = maxTokens ?: config.defaultMaxTokens
+
         // Валидация параметров
         require(messages.isNotEmpty()) {
             "messages list cannot be empty"
         }
 
-        require(maxTokens > 0) {
-            "maxTokens must be positive, got: $maxTokens"
+        require(maxTokensToUse > 0) {
+            "maxTokens must be positive, got: $maxTokensToUse"
         }
 
         temperature?.let {
@@ -65,15 +71,56 @@ class ClaudeClient(private val config: ClaudeConfig) : AutoCloseable {
         logger.info("Sending conversation to Claude API (${messages.size} messages)")
 
         val request = ClaudeRequest(
-            model = model,
-            maxTokens = maxTokens,
+            model = modelToUse,
+            maxTokens = maxTokensToUse,
             messages = messages,
             system = systemPrompt,
             temperature = temperature
         )
 
-        return makeRequest(request)
+        var claudeResponse: ClaudeResponse
+        val timeMs = measureTimeMillis {
+            claudeResponse = makeRequest(request)
+        }
+
+        val content = claudeResponse.content.firstOrNull()?.text
+            ?: throw IllegalStateException("Пустой ответ от API")
+
+        val usage = claudeResponse.usage ?: Usage(0, 0)
+
+        // Расчет стоимости для Claude
+        val cost = calculateClaudeCost(modelToUse, usage.inputTokens, usage.outputTokens)
+
+        return AIResponse(
+            content = content,
+            metrics = ResponseMetrics(
+                responseTimeMs = timeMs,
+                inputTokens = usage.inputTokens,
+                outputTokens = usage.outputTokens,
+                totalTokens = usage.inputTokens + usage.outputTokens,
+                estimatedCostUsd = cost
+            ),
+            modelName = modelToUse,
+            providerName = "Claude"
+        )
     }
+
+    private fun calculateClaudeCost(model: String, inputTokens: Int, outputTokens: Int): Double {
+        // Цены на Claude модели (per 1M tokens)
+        val (inputPrice, outputPrice) = when {
+            model.contains("claude-3-opus") -> 15.0 to 75.0
+            model.contains("claude-3-sonnet") -> 3.0 to 15.0
+            model.contains("claude-3-haiku") -> 0.25 to 1.25
+            model.contains("claude-sonnet-4") -> 3.0 to 15.0
+            else -> 3.0 to 15.0 // По умолчанию как Sonnet
+        }
+
+        return (inputTokens * inputPrice / 1_000_000) + (outputTokens * outputPrice / 1_000_000)
+    }
+
+    override fun getProviderName(): String = "Claude"
+
+    override fun getDefaultModel(): String = config.defaultModel
 
     /**
      * Выполняет HTTP запрос к Claude API
