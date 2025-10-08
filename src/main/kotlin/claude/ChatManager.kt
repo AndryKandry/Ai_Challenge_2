@@ -8,12 +8,21 @@ import kotlinx.serialization.SerializationException
 
 enum class ChatMode {
     SIMPLE,
-    JSON
+    JSON,
+    CHAIN_OF_THOUGHT
 }
 
 @Serializable
 data class JsonResponse(
     val question: String,
+    val answer: String,
+    val images: List<String>? = null
+)
+
+@Serializable
+data class ChainOfThoughtResponse(
+    val question: String,
+    val thinking: String,
     val answer: String,
     val images: List<String>? = null
 )
@@ -32,9 +41,7 @@ class ChatManager(
 
         Твоя роль:
         1. Помогать пользователям с их вопросами
-        2. Задавать уточняющие вопросы при необходимости
-        3. Давать подробные и полезные ответы
-        4. Быть вежливым и конструктивным
+        2. Быть вежливым и конструктивным
 
         Отвечай СТРОГО в формате JSON:
         {
@@ -49,6 +56,41 @@ class ChatManager(
         Не добавляй текста до/после JSON. Только валидный JSON объект.
     """.trimIndent()
 
+    private val chainOfThoughtSystemPrompt = """
+        Ты - дружелюбный AI помощник, который использует цепочку рассуждений для решения задач.
+
+        Твоя роль:
+        1. Анализировать вопрос пользователя пошагово
+        2. Показывать процесс своих рассуждений%
+        3. Давать обоснованные и подробные ответы
+        4. Быть вежливым и конструктивным
+
+        ВАЖНО: Используй цепочку рассуждений (Chain of Thought).
+        - Сначала подумай вслух о задаче
+        - Разбей сложные вопросы на части
+        - Объясни свою логику и шаги решения
+        - Затем дай финальный ответ
+
+        Отвечай СТРОГО в формате JSON:
+        {
+            "question": "краткая формулировка вопроса пользователя",
+            "thinking": "твои пошаговые рассуждения и анализ вопроса",
+            "answer": "твой финальный ответ после рассуждений",
+            "images": ["url1", "url2"] // опционально, если релевантно
+        }
+
+        В поле "thinking" подробно опиши:
+        - Как ты понимаешь вопрос
+        - Какие шаги необходимы для решения
+        - Промежуточные выводы
+        - Логику твоих рассуждений
+
+        В JSON ответах ОБЯЗАТЕЛЬНО должны быть поля question, thinking и answer.
+        ВСЕГДА возвращай JSON объект указанного формата.
+
+        Не добавляй текста до/после JSON. Только валидный JSON объект.
+    """.trimIndent()
+
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
@@ -58,10 +100,15 @@ class ChatManager(
         // Добавляем сообщение пользователя в историю
         conversationManager.addUserMessage(userMessage)
 
-        // Всегда используем jsonSystemPrompt для получения структурированного ответа
+        // Выбираем системный промпт в зависимости от режима
+        val systemPromptToUse = when (chatMode) {
+            ChatMode.CHAIN_OF_THOUGHT -> chainOfThoughtSystemPrompt
+            else -> jsonSystemPrompt
+        }
+
         val response = client.sendConversation(
             messages = conversationManager.getMessages(),
-            systemPrompt = jsonSystemPrompt,
+            systemPrompt = systemPromptToUse,
             temperature = temperature
         )
 
@@ -101,12 +148,37 @@ class ChatManager(
     }
 
     /**
+     * Парсит и форматирует ответ с цепочкой рассуждений
+     */
+    private fun parseChainOfThoughtResponse(rawResponse: String): String {
+        return try {
+            val cotResponse = json.decodeFromString<ChainOfThoughtResponse>(rawResponse)
+            """
+                🤔 Рассуждения:
+                ${cotResponse.thinking}
+
+                ✅ Ответ:
+                ${cotResponse.answer}
+            """.trimIndent()
+        } catch (e: Exception) {
+            logger.warning("Ошибка парсинга Chain of Thought: ${e.message}")
+            logger.warning("Сырой ответ: $rawResponse")
+            """
+                ⚠️ Ошибка парсинга ответа с рассуждениями.
+
+                Пожалуйста, попробуйте задать вопрос ещё раз.
+            """.trimIndent()
+        }
+    }
+
+    /**
      * Форматирует ответ в зависимости от режима чата
      */
     fun formatResponse(rawResponse: String): String {
         return when (chatMode) {
             ChatMode.JSON -> rawResponse // Возвращаем полный JSON
             ChatMode.SIMPLE -> parseJsonResponseForSimpleMode(rawResponse) // Парсим и возвращаем только answer
+            ChatMode.CHAIN_OF_THOUGHT -> parseChainOfThoughtResponse(rawResponse) // Показываем рассуждения и ответ
         }
     }
 
@@ -115,10 +187,17 @@ class ChatManager(
      */
     fun extractImages(rawResponse: String): List<String> {
         return try {
-            val jsonResponse = json.decodeFromString<JsonResponse>(rawResponse)
-            jsonResponse.images ?: emptyList()
+            // Пробуем сначала Chain of Thought формат
+            val cotResponse = json.decodeFromString<ChainOfThoughtResponse>(rawResponse)
+            cotResponse.images ?: emptyList()
         } catch (e: Exception) {
-            emptyList()
+            try {
+                // Если не получилось, пробуем обычный JSON формат
+                val jsonResponse = json.decodeFromString<JsonResponse>(rawResponse)
+                jsonResponse.images ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
     }
 
@@ -204,6 +283,11 @@ class ChatManager(
                 "/json_chat" -> {
                     setChatMode(ChatMode.JSON)
                     println("\n✓ Переключено на JSON режим чата")
+                    continue
+                }
+                "/cot_chat" -> {
+                    setChatMode(ChatMode.CHAIN_OF_THOUGHT)
+                    println("\n✓ Переключено на режим цепочки рассуждений")
                     continue
                 }
             }

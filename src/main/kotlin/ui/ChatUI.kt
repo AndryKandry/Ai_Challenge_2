@@ -85,22 +85,56 @@ fun ChatScreen(chatManager: ChatManager) {
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (currentMode == ChatMode.JSON) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
-                    modifier = Modifier.clickable {
-                        // Переключаем режим
-                        val newMode = if (currentMode == ChatMode.SIMPLE) ChatMode.JSON else ChatMode.SIMPLE
-                        chatManager.setChatMode(newMode)
-                        currentMode = newMode
-                    }
+Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (currentMode == ChatMode.JSON) "JSON режим" else "Обычный режим",
-                        fontSize = 12.sp,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (currentMode == ChatMode.SIMPLE) Color(0xFF9E9E9E) else Color(0xFFBDBDBD),
+                        modifier = Modifier.clickable {
+                            chatManager.setChatMode(ChatMode.SIMPLE)
+                            currentMode = ChatMode.SIMPLE
+                        }
+                    ) {
+                        Text(
+                            text = "💬 Обычный",
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (currentMode == ChatMode.CHAIN_OF_THOUGHT) Color(0xFFFF9800) else Color(0xFFBDBDBD),
+                        modifier = Modifier.clickable {
+                            chatManager.setChatMode(ChatMode.CHAIN_OF_THOUGHT)
+                            currentMode = ChatMode.CHAIN_OF_THOUGHT
+                        }
+                    ) {
+                        Text(
+                            text = "🤔 Рассуждения",
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (currentMode == ChatMode.JSON) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
+                        modifier = Modifier.clickable {
+                            chatManager.setChatMode(ChatMode.JSON)
+                            currentMode = ChatMode.JSON
+                        }
+                    ) {
+                        Text(
+                            text = "📋 JSON",
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
                 }
             }
 
@@ -232,7 +266,7 @@ fun ChatScreen(chatManager: ChatManager) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Команды: /simple_chat (обычный режим), /json_chat (JSON режим)",
+                        text = "Команды: /simple_chat, /cot_chat (рассуждения), /json_chat",
                         fontSize = 10.sp,
                         color = Color(0xFFE65100).copy(alpha = 0.7f),
                         fontWeight = FontWeight.Light
@@ -281,6 +315,11 @@ fun ChatScreen(chatManager: ChatManager) {
                                 "/simple_chat" -> {
                                     chatManager.setChatMode(ChatMode.SIMPLE)
                                     currentMode = ChatMode.SIMPLE
+                                    return@Button
+                                }
+                                "/cot_chat" -> {
+                                    chatManager.setChatMode(ChatMode.CHAIN_OF_THOUGHT)
+                                    currentMode = ChatMode.CHAIN_OF_THOUGHT
                                     return@Button
                                 }
                                 "/json_chat" -> {
