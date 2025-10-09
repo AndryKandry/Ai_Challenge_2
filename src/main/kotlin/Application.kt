@@ -13,6 +13,7 @@ import org.kozyrev.claude.ClaudeClientBuilder
 import org.kozyrev.claude.YandexGPTClientBuilder
 import org.kozyrev.ui.ChatScreen
 import org.kozyrev.ui.ModelComparisonScreen
+import org.kozyrev.ui.AgentInteractionScreen
 import java.util.logging.Logger
 
 fun main() {
@@ -70,7 +71,7 @@ fun main() {
                 yandexClient?.close()
                 exitApplication()
             },
-            title = "Claude AI Chat & Model Comparison",
+            title = "Claude AI: Chat, Model Comparison & Agent Interaction",
             state = rememberWindowState(width = 1000.dp, height = 700.dp)
         ) {
             MainScreen(chatManager)
@@ -81,6 +82,15 @@ fun main() {
 @Composable
 fun MainScreen(chatManager: ChatManager) {
     var selectedTab by remember { mutableStateOf(0) }
+
+    // Получаем AI клиент для агентов (используем Claude)
+    val claudeApiKey = System.getenv("ANTHROPIC_API_KEY") ?: ""
+    val aiClient = remember {
+        ClaudeClientBuilder()
+            .apiKey(claudeApiKey)
+            .defaultMaxTokens(2048)
+            .build()
+    }
 
     MaterialTheme {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -95,11 +105,17 @@ fun MainScreen(chatManager: ChatManager) {
                     onClick = { selectedTab = 1 },
                     text = { Text("🔬 Сравнение моделей") }
                 )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("🤖 Агенты") }
+                )
             }
 
             when (selectedTab) {
                 0 -> ChatScreen(chatManager)
                 1 -> ModelComparisonScreen()
+                2 -> AgentInteractionScreen(aiClient)
             }
         }
     }
