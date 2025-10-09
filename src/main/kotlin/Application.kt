@@ -10,6 +10,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import org.kozyrev.claude.ChatManager
 import org.kozyrev.claude.ClaudeClientBuilder
+import org.kozyrev.claude.YandexGPTClientBuilder
 import org.kozyrev.ui.ChatScreen
 import org.kozyrev.ui.ModelComparisonScreen
 import java.util.logging.Logger
@@ -18,24 +19,55 @@ fun main() {
     // Настройка логгера
     val logger = Logger.getLogger("Main")
 
-    // Получение API ключа из переменных окружения
-    val apiKey = System.getenv("ANTHROPIC_API_KEY")
+    // Получение API ключа Claude из переменных окружения
+    val claudeApiKey = System.getenv("ANTHROPIC_API_KEY")
         ?: throw IllegalStateException("ANTHROPIC_API_KEY not found")
 
-    // Создание клиента с помощью builder
-    val client = ClaudeClientBuilder()
-        .apiKey(apiKey)
+    // Создание Claude клиента с помощью builder
+    val claudeClient = ClaudeClientBuilder()
+        .apiKey(claudeApiKey)
         .defaultMaxTokens(1024)
         .build()
 
-    // Создание ChatManager
-    val chatManager = ChatManager(client, systemPrompt = "Ты - helpful AI assistant")
+    // Попытка создать Yandex GPT клиент (опционально)
+    val yandexClient = try {
+        val yandexApiKey = System.getenv("YANDEX_API_KEY")
+        val yandexFolderId = System.getenv("YANDEX_FOLDER_ID")
+
+        if (yandexApiKey != null && yandexFolderId != null) {
+            logger.info("Инициализация Yandex GPT клиента...")
+            YandexGPTClientBuilder()
+                .apiKey(yandexApiKey)
+                .folderId(yandexFolderId)
+                .defaultMaxTokens(2000)
+                .build()
+        } else {
+            logger.warning("Yandex GPT не настроен (отсутствуют YANDEX_API_KEY или YANDEX_FOLDER_ID)")
+            null
+        }
+    } catch (e: Exception) {
+        logger.warning("Не удалось инициализировать Yandex GPT: ${e.message}")
+        null
+    }
+
+    // Создание ChatManager с обоими клиентами
+    val chatManager = ChatManager(
+        claudeClient = claudeClient,
+        yandexClient = yandexClient,
+        systemPrompt = """
+            Ты - дружелюбный AI помощник.
+
+            Помогай пользователям с их вопросами, будь вежливым и конструктивным.
+            Давай чёткие и понятные ответы на русском языке.
+        """.trimIndent()
+    )
 
     // Запуск GUI приложения
     application {
         Window(
             onCloseRequest = {
-                client.close()
+                claudeClient.close()
+                yandexClient?.close()
                 exitApplication()
             },
             title = "Claude AI Chat & Model Comparison",

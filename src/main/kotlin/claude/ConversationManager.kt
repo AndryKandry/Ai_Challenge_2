@@ -66,4 +66,17 @@ class ConversationManager() {
      * Возвращает количество сообщений
      */
     fun size(): Int = messages.size
+
+    /**
+     * Удаляет последнее сообщение из истории
+     * Используется для отката при ошибках
+     */
+    fun removeLastMessage() {
+        if (messages.isNotEmpty()) {
+            val removed = messages.removeAt(messages.size - 1)
+            logger.info("Removed last message (role: ${removed.role}), remaining messages: ${messages.size}")
+        } else {
+            logger.warning("Attempted to remove last message, but history is empty")
+        }
+    }
 }

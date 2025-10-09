@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.launch
 import org.kozyrev.claude.ChatManager
-import org.kozyrev.claude.ChatMode
+import org.kozyrev.claude.LLMProvider
 import org.kozyrev.claude.Message
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -33,7 +33,7 @@ fun ChatScreen(chatManager: ChatManager) {
     var messageText by remember { mutableStateOf("") }
     var messages by remember { mutableStateOf<List<Message>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    var currentMode by remember { mutableStateOf(ChatMode.SIMPLE) }
+    var currentProvider by remember { mutableStateOf(chatManager.getLLMProvider()) }
     var temperature by remember { mutableStateOf(1.0f) }
     var temperatureText by remember { mutableStateOf("1.0") }
     var temperatureUpdateJob by remember { mutableStateOf<Job?>(null) }
@@ -72,67 +72,74 @@ fun ChatScreen(chatManager: ChatManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Text(
+                    text = "AI Помощник",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Выбор LLM провайдера
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFF3E5F5),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "AI Помощник",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Дружелюбный AI ассистент",
+                        text = "🤖 Выбор AI модели",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6A1B9A)
                     )
-                }
+                    Spacer(modifier = Modifier.height(8.dp))
 
-Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (currentMode == ChatMode.SIMPLE) Color(0xFF9E9E9E) else Color(0xFFBDBDBD),
-                        modifier = Modifier.clickable {
-                            chatManager.setChatMode(ChatMode.SIMPLE)
-                            currentMode = ChatMode.SIMPLE
-                        }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "💬 Обычный",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (currentProvider == LLMProvider.CLAUDE) Color(0xFF9C27B0) else Color(0xFFBDBDBD),
+                            modifier = Modifier.clickable {
+                                chatManager.setLLMProvider(LLMProvider.CLAUDE)
+                                currentProvider = LLMProvider.CLAUDE
+                            }
+                        ) {
+                            Text(
+                                text = "🔵 Claude",
+                                fontSize = 12.sp,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (currentProvider == LLMProvider.YANDEX_GPT) Color(0xFF9C27B0) else Color(0xFFBDBDBD),
+                            modifier = Modifier.clickable {
+                                if (chatManager.isYandexGPTAvailable()) {
+                                    chatManager.setLLMProvider(LLMProvider.YANDEX_GPT)
+                                    currentProvider = LLMProvider.YANDEX_GPT
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "🟡 Yandex GPT",
+                                fontSize = 12.sp,
+                                color = if (chatManager.isYandexGPTAvailable()) Color.White else Color.Gray,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (currentMode == ChatMode.CHAIN_OF_THOUGHT) Color(0xFFFF9800) else Color(0xFFBDBDBD),
-                        modifier = Modifier.clickable {
-                            chatManager.setChatMode(ChatMode.CHAIN_OF_THOUGHT)
-                            currentMode = ChatMode.CHAIN_OF_THOUGHT
-                        }
-                    ) {
+                    if (!chatManager.isYandexGPTAvailable()) {
                         Text(
-                            text = "🤔 Рассуждения",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (currentMode == ChatMode.JSON) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
-                        modifier = Modifier.clickable {
-                            chatManager.setChatMode(ChatMode.JSON)
-                            currentMode = ChatMode.JSON
-                        }
-                    ) {
-                        Text(
-                            text = "📋 JSON",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            text = "Yandex GPT недоступен (не настроен API ключ)",
+                            fontSize = 10.sp,
+                            color = Color(0xFF6A1B9A).copy(alpha = 0.7f),
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -264,13 +271,6 @@ Row(
                         fontSize = 11.sp,
                         color = Color(0xFFE65100)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Команды: /simple_chat, /cot_chat (рассуждения), /json_chat",
-                        fontSize = 10.sp,
-                        color = Color(0xFFE65100).copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Light
-                    )
                 }
             }
 
@@ -310,30 +310,18 @@ Row(
                             val userMessage = messageText.trim()
                             messageText = ""
 
-                            // Проверка на команды переключения режима
-                            when (userMessage) {
-                                "/simple_chat" -> {
-                                    chatManager.setChatMode(ChatMode.SIMPLE)
-                                    currentMode = ChatMode.SIMPLE
-                                    return@Button
-                                }
-                                "/cot_chat" -> {
-                                    chatManager.setChatMode(ChatMode.CHAIN_OF_THOUGHT)
-                                    currentMode = ChatMode.CHAIN_OF_THOUGHT
-                                    return@Button
-                                }
-                                "/json_chat" -> {
-                                    chatManager.setChatMode(ChatMode.JSON)
-                                    currentMode = ChatMode.JSON
-                                    return@Button
-                                }
-                            }
+                            // Сразу добавляем сообщение пользователя в UI
+                            messages = messages + Message(
+                                role = "user",
+                                content = userMessage
+                            )
 
                             isLoading = true
 
                             scope.launch {
                                 try {
                                     chatManager.sendMessage(userMessage)
+                                    // Обновляем весь список из истории (включает и user, и assistant)
                                     messages = chatManager.getHistory()
 
                                     // Прокрутка вниз к последнему сообщению
@@ -341,18 +329,22 @@ Row(
                                 } catch (e: Exception) {
                                     // Обработка ошибок
                                     e.printStackTrace()
-                                    // Добавляем сообщение об ошибке в историю
+                                    // Добавляем сообщение об ошибке в UI
+                                    // Сообщение пользователя уже отображается, добавляем только ошибку
                                     val errorMessage = """
                                         ⚠️ Произошла ошибка при получении ответа: ${e.message}
 
                                         Пожалуйста, попробуйте задать вопрос ещё раз.
                                     """.trimIndent()
-                                    // Создаем сообщение об ошибке и обновляем список
+
                                     messages = messages + Message(
                                         role = "assistant",
                                         content = errorMessage,
                                         isSystemMessage = true
                                     )
+
+                                    // Прокрутка к сообщению об ошибке
+                                    listState.animateScrollToItem(messages.size - 1)
                                 } finally {
                                     isLoading = false
                                 }
@@ -383,21 +375,8 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
     val textColor = if (isUser) Color.White else Color.Black
     val alignment = if (isUser) Alignment.BottomEnd else Alignment.BottomStart
 
-    // Форматируем контент в зависимости от роли и режима
-    val displayContent = if (isUser || message.isSystemMessage) {
-        // Для пользователя и системных сообщений выводим как есть
-        message.content
-    } else {
-        // Для сообщений от LLM форматируем через chatManager
-        chatManager.formatResponse(message.content)
-    }
-
-    // Извлекаем изображения только для сообщений от LLM
-    val images = if (!isUser && !message.isSystemMessage) {
-        chatManager.extractImages(message.content)
-    } else {
-        emptyList()
-    }
+    // Все сообщения выводим как есть (простой текст)
+    val displayContent = message.content
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -425,22 +404,6 @@ fun MessageBubble(message: Message, chatManager: ChatManager) {
                     color = textColor,
                     fontSize = 14.sp
                 )
-
-                // Отображение изображений
-                if (images.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    images.forEach { imageUrl ->
-                        AsyncImage(
-                            model = imageUrl,
-                            contentDescription = "Изображение",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .padding(vertical = 4.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
             }
         }
     }
