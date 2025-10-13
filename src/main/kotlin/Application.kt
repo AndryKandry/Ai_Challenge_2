@@ -14,6 +14,7 @@ import org.kozyrev.claude.YandexGPTClientBuilder
 import org.kozyrev.ui.ChatScreen
 import org.kozyrev.ui.ModelComparisonScreen
 import org.kozyrev.ui.AgentInteractionScreen
+import org.kozyrev.ui.TokenComparisonScreen
 import java.util.logging.Logger
 
 fun main() {
@@ -71,7 +72,7 @@ fun main() {
                 yandexClient?.close()
                 exitApplication()
             },
-            title = "Claude AI: Chat, Model Comparison & Agent Interaction",
+            title = "Claude AI: Chat, Model Comparison, Token Analysis & Agents",
             state = rememberWindowState(width = 1000.dp, height = 700.dp)
         ) {
             MainScreen(chatManager)
@@ -108,6 +109,11 @@ fun MainScreen(chatManager: ChatManager) {
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
+                    text = { Text("🔢 Анализ токенов") }
+                )
+                Tab(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
                     text = { Text("🤖 Агенты") }
                 )
             }
@@ -115,7 +121,8 @@ fun MainScreen(chatManager: ChatManager) {
             when (selectedTab) {
                 0 -> ChatScreen(chatManager)
                 1 -> ModelComparisonScreen()
-                2 -> AgentInteractionScreen(aiClient)
+                2 -> TokenComparisonScreen()
+                3 -> AgentInteractionScreen(aiClient)
             }
         }
     }

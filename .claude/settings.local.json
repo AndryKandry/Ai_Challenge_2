@@ -3,7 +3,9 @@
     "allow": [
       "Bash(./gradlew build:*)",
       "Bash(./gradlew compileKotlin:*)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
