@@ -13,8 +13,8 @@ fun main() = runBlocking {
     println()
 
     // Инициализация AI клиента
-    val apiKey = System.getenv("ANTHROPIC_API_KEY")
-        ?: throw IllegalStateException("ANTHROPIC_API_KEY не найден")
+    val apiKey = System.getenv("CLAUDE_API_KEY")
+        ?: throw IllegalStateException("CLAUDE_API_KEY не найден")
 
     val aiClient = ClaudeClientBuilder()
         .apiKey(apiKey)

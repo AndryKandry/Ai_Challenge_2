@@ -5,14 +5,14 @@
 ### Вариант 1: Только Claude (минимальная настройка)
 
 ```bash
-export ANTHROPIC_API_KEY="ваш-ключ-claude"
+export CLAUDE_API_KEY="ваш-ключ-claude"
 ./gradlew run
 ```
 
 ### Вариант 2: Claude + Yandex GPT
 
 ```bash
-export ANTHROPIC_API_KEY="ваш-ключ-claude"
+export CLAUDE_API_KEY="ваш-ключ-claude"
 export YANDEX_API_KEY="ваш-ключ-yandex"
 export YANDEX_FOLDER_ID="ваш-folder-id"
 ./gradlew run
@@ -57,7 +57,7 @@ export YANDEX_FOLDER_ID="ваш-folder-id"
 ### Claude AI
 1. Зарегистрируйтесь: https://console.anthropic.com/
 2. Создайте API ключ
-3. Установите: `export ANTHROPIC_API_KEY="ключ"`
+3. Установите: `export CLAUDE_API_KEY="ключ"`
 
 ### Yandex GPT (опционально)
 1. Зарегистрируйтесь: https://cloud.yandex.ru/
@@ -84,7 +84,7 @@ export YANDEX_FOLDER_ID="ваш-folder-id"
 
 Проверьте:
 1. Java 17+ установлена: `java -version`
-2. API ключ Claude установлен: `echo $ANTHROPIC_API_KEY`
+2. API ключ Claude установлен: `echo $CLAUDE_API_KEY`
 3. Логи Gradle: `./gradlew run --stacktrace`
 
 ## Структура проекта

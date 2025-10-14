@@ -425,7 +425,7 @@ fun WinnersCard(result: ComparisonResult) {
  * Функция для запуска сравнения моделей
  */
 private suspend fun runComparison(testPrompt: String, temperature: Double): ComparisonResult {
-    val claudeApiKey = System.getenv("ANTHROPIC_API_KEY")
+    val claudeApiKey = System.getenv("CLAUDE_API_KEY")
     val hfApiKey = System.getenv("HUGGINGFACE_API_KEY")
 
     val clients = mutableListOf<AIClient>()
@@ -466,7 +466,7 @@ private suspend fun runComparison(testPrompt: String, temperature: Double): Comp
     }
 
     if (clients.isEmpty()) {
-        throw IllegalStateException("Не установлены API ключи. Установите ANTHROPIC_API_KEY или HUGGINGFACE_API_KEY")
+        throw IllegalStateException("Не установлены API ключи. Установите CLAUDE_API_KEY или HUGGINGFACE_API_KEY")
     }
 
     val comparison = ModelComparison()

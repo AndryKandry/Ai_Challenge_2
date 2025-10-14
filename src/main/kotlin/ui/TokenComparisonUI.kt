@@ -35,9 +35,9 @@ fun checkAvailableProviders(): Map<String, ProviderInfo> {
     return mapOf(
         "claude" to ProviderInfo(
             name = "Claude",
-            isAvailable = System.getenv("ANTHROPIC_API_KEY") != null,
+            isAvailable = System.getenv("CLAUDE_API_KEY") != null,
             missingVars = listOfNotNull(
-                if (System.getenv("ANTHROPIC_API_KEY") == null) "ANTHROPIC_API_KEY" else null
+                if (System.getenv("CLAUDE_API_KEY") == null) "CLAUDE_API_KEY" else null
             )
         ),
         "huggingface" to ProviderInfo(
@@ -647,8 +647,8 @@ suspend fun runComparisonFromEnv(
     // Получаем API ключи из переменных окружения
     val (client, config) = when (clientType.lowercase()) {
         "claude" -> {
-            val apiKey = System.getenv("ANTHROPIC_API_KEY")
-                ?: throw IllegalStateException("ANTHROPIC_API_KEY не установлен")
+            val apiKey = System.getenv("CLAUDE_API_KEY")
+                ?: throw IllegalStateException("CLAUDE_API_KEY не установлен")
 
             val claudeConfig = ClaudeConfig(
                 apiKey = apiKey,

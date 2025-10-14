@@ -44,7 +44,7 @@ fun AgentInteractionScreen(defaultAiClient: AIClient) {
 
     // Создаем клиенты для разных провайдеров
     val claudeClient = remember {
-        val apiKey = System.getenv("ANTHROPIC_API_KEY") ?: ""
+        val apiKey = System.getenv("CLAUDE_API_KEY") ?: ""
         ClaudeClientBuilder()
             .apiKey(apiKey)
             .defaultMaxTokens(2048)

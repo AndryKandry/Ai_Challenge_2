@@ -5,7 +5,16 @@
       "Bash(./gradlew compileKotlin:*)",
       "Bash(./gradlew:*)",
       "Bash(find:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 3 curl -v -N -H \"Accept: text/event-stream\" \"https://mcp.deepwiki.com/sse\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.devin.ai)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:mcp-framework.com)",
+      "WebFetch(domain:spec.modelcontextprotocol.io)"
     ],
     "deny": [],
     "ask": []

@@ -13,11 +13,11 @@ object ModelComparisonExample {
         println()
 
         // Проверяем наличие API ключей
-        val claudeApiKey = System.getenv("ANTHROPIC_API_KEY")
+        val claudeApiKey = System.getenv("CLAUDE_API_KEY")
         val hfApiKey = System.getenv("HUGGINGFACE_API_KEY")
 
         if (claudeApiKey.isNullOrBlank()) {
-            println("⚠️  ПРЕДУПРЕЖДЕНИЕ: Не установлен ANTHROPIC_API_KEY")
+            println("⚠️  ПРЕДУПРЕЖДЕНИЕ: Не установлен CLAUDE_API_KEY")
         }
 
         if (hfApiKey.isNullOrBlank()) {

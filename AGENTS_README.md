@@ -224,7 +224,7 @@ println("Успешно: ${result.success}")
 ## Требования
 
 - Kotlin 1.9+
-- Claude AI API ключ (через ANTHROPIC_API_KEY)
+- Claude AI API ключ (через CLAUDE_API_KEY)
 - Jetpack Compose для Desktop
 - kotlinx.serialization для работы с JSON
 

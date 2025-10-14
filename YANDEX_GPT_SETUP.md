@@ -10,7 +10,7 @@
 
 ### Для Claude (обязательно)
 ```bash
-export ANTHROPIC_API_KEY="your-claude-api-key"
+export CLAUDE_API_KEY="your-claude-api-key"
 ```
 
 ### Для Yandex GPT (опционально)
@@ -37,13 +37,13 @@ export YANDEX_FOLDER_ID="your-yandex-folder-id"
 
 ### С Claude (по умолчанию)
 ```bash
-export ANTHROPIC_API_KEY="your-claude-api-key"
+export CLAUDE_API_KEY="your-claude-api-key"
 ./gradlew run
 ```
 
 ### С Claude и Yandex GPT
 ```bash
-export ANTHROPIC_API_KEY="your-claude-api-key"
+export CLAUDE_API_KEY="your-claude-api-key"
 export YANDEX_API_KEY="your-yandex-api-key"
 export YANDEX_FOLDER_ID="your-yandex-folder-id"
 ./gradlew run

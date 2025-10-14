@@ -15,6 +15,7 @@ import org.kozyrev.ui.ChatScreen
 import org.kozyrev.ui.ModelComparisonScreen
 import org.kozyrev.ui.AgentInteractionScreen
 import org.kozyrev.ui.TokenComparisonScreen
+import org.kozyrev.ui.MCPToolsScreen
 import java.util.logging.Logger
 
 fun main() {
@@ -22,8 +23,8 @@ fun main() {
     val logger = Logger.getLogger("Main")
 
     // Получение API ключа Claude из переменных окружения
-    val claudeApiKey = System.getenv("ANTHROPIC_API_KEY")
-        ?: throw IllegalStateException("ANTHROPIC_API_KEY not found")
+    val claudeApiKey = System.getenv("CLAUDE_API_KEY")
+        ?: throw IllegalStateException("CLAUDE_API_KEY not found")
 
     // Создание Claude клиента с помощью builder
     val claudeClient = ClaudeClientBuilder()
@@ -72,7 +73,7 @@ fun main() {
                 yandexClient?.close()
                 exitApplication()
             },
-            title = "Claude AI: Chat, Model Comparison, Token Analysis & Agents",
+            title = "Claude AI: Chat, Model Comparison, Token Analysis, Agents & MCP",
             state = rememberWindowState(width = 1000.dp, height = 700.dp)
         ) {
             MainScreen(chatManager)
@@ -85,7 +86,7 @@ fun MainScreen(chatManager: ChatManager) {
     var selectedTab by remember { mutableStateOf(0) }
 
     // Получаем AI клиент для агентов (используем Claude)
-    val claudeApiKey = System.getenv("ANTHROPIC_API_KEY") ?: ""
+    val claudeApiKey = System.getenv("CLAUDE_API_KEY") ?: ""
     val aiClient = remember {
         ClaudeClientBuilder()
             .apiKey(claudeApiKey)
@@ -116,6 +117,11 @@ fun MainScreen(chatManager: ChatManager) {
                     onClick = { selectedTab = 3 },
                     text = { Text("🤖 Агенты") }
                 )
+                Tab(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    text = { Text("🔧 MCP Tools") }
+                )
             }
 
             when (selectedTab) {
@@ -123,6 +129,7 @@ fun MainScreen(chatManager: ChatManager) {
                 1 -> ModelComparisonScreen()
                 2 -> TokenComparisonScreen()
                 3 -> AgentInteractionScreen(aiClient)
+                4 -> MCPToolsScreen()
             }
         }
     }
