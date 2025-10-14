@@ -21,7 +21,7 @@ import org.kozyrev.mcp.*
 
 @Composable
 fun MCPToolsScreen() {
-    var serverUrl by remember { mutableStateOf("http://127.0.0.1:8000/mcp/ttols") }//"https://mcp.deepwiki.com/sse") }
+    var serverUrl by remember { mutableStateOf("http://127.0.0.1:8000/mcp") }
     var tools by remember { mutableStateOf<List<MCPTool>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -30,6 +30,7 @@ fun MCPToolsScreen() {
     var selectedTool by remember { mutableStateOf<MCPTool?>(null) }
     var toolResult by remember { mutableStateOf<String?>(null) }
     var mcpClient by remember { mutableStateOf<MCPClientInterface?>(null) }
+    var ttoolsInfo by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
 
@@ -90,6 +91,7 @@ fun MCPToolsScreen() {
                         tools = emptyList()
                         selectedTool = null
                         toolResult = null
+                        ttoolsInfo = null
 
                         // Функция для попытки подключения
                         suspend fun tryConnectWithClient(client: MCPClientInterface): Boolean {
@@ -103,6 +105,21 @@ fun MCPToolsScreen() {
                                     if (toolsResult.isSuccess) {
                                         tools = toolsResult.getOrNull() ?: emptyList()
                                         mcpClient = client
+
+                                        // Пробуем вызвать ttools для получения детальной информации
+                                        try {
+                                            val ttoolsResult = client.callTool("ttools", emptyMap())
+                                            if (ttoolsResult.isSuccess) {
+                                                val content = ttoolsResult.getOrNull()?.content
+                                                ttoolsInfo = content?.firstOrNull()?.text
+                                                println("✓ ttools вызван успешно")
+                                            } else {
+                                                println("⚠️ ttools недоступен: ${ttoolsResult.exceptionOrNull()?.message}")
+                                            }
+                                        } catch (e: Exception) {
+                                            println("⚠️ ttools недоступен: ${e.message}")
+                                        }
+
                                         true
                                     } else {
                                         errorMessage = "Ошибка получения инструментов: ${toolsResult.exceptionOrNull()?.message}"
@@ -130,6 +147,10 @@ fun MCPToolsScreen() {
                                         println("🔄 Используем специальный DeepWiki клиент...")
                                         MCPDeepWikiClient()
                                     }
+                                    serverUrl.contains("127.0.0.1") || serverUrl.contains("localhost") -> {
+                                        println("🔄 Локальный сервер обнаружен, используем Python FastMCP клиент...")
+                                        MCPPythonClient(serverUrl)
+                                    }
                                     else -> {
                                         println("🔄 Попытка подключения через SSE клиент...")
                                         MCPSSEClient(serverUrl)
@@ -138,7 +159,8 @@ fun MCPToolsScreen() {
 
                                 val result = tryConnectWithClient(client)
 
-                                if (!result && !serverUrl.contains("deepwiki.com")) {
+                                if (!result && !serverUrl.contains("deepwiki.com") &&
+                                    !(serverUrl.contains("127.0.0.1") || serverUrl.contains("localhost"))) {
                                     println("⚠️ SSE клиент не сработал, пробую упрощенный клиент...")
                                     client.close()
 
@@ -151,7 +173,11 @@ fun MCPToolsScreen() {
                                     }
                                 } else if (!result) {
                                     client.close()
-                                    errorMessage = "Не удалось подключиться к DeepWiki. Проверьте интернет-соединение."
+                                    if (serverUrl.contains("127.0.0.1") || serverUrl.contains("localhost")) {
+                                        errorMessage = "Не удалось подключиться к локальному серверу. Убедитесь, что Python MCP сервер запущен."
+                                    } else {
+                                        errorMessage = "Не удалось подключиться к серверу. Проверьте URL и интернет-соединение."
+                                    }
                                 }
                             }
                         } catch (e: Exception) {
@@ -186,6 +212,7 @@ fun MCPToolsScreen() {
                         serverInfo = null
                         selectedTool = null
                         toolResult = null
+                        ttoolsInfo = null
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
@@ -212,6 +239,15 @@ fun MCPToolsScreen() {
                     fontWeight = FontWeight.Medium
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Детальная информация из ttools
+        ttoolsInfo?.let { info ->
+            TToolsInfoCard(
+                info = info,
+                onDismiss = { ttoolsInfo = null }
+            )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
@@ -330,11 +366,131 @@ fun MCPToolsScreen() {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Введите URL сервера и нажмите кнопку подключения для получения списка доступных инструментов.\n\nПримеры серверов:\n\n📚 DeepWiki (документация GitHub):\nhttps://mcp.deepwiki.com/sse\n",
+                        text = "Введите URL сервера и нажмите кнопку подключения для получения списка доступных инструментов.\n\nПримеры серверов:\n\n🏠 Локальный Python MCP сервер:\nhttp://127.0.0.1:8000/mcp\n",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun TToolsInfoCard(info: String, onDismiss: () -> Unit) {
+    // Парсим JSON массив инструментов ДО Composable блока
+    data class ParsedTool(val name: String, val signature: String, val doc: String)
+
+    val parsedTools = remember(info) {
+        try {
+            val json = Json { ignoreUnknownKeys = true; isLenient = true }
+            val toolsArray = json.decodeFromString<JsonArray>(info)
+            toolsArray.mapNotNull { element ->
+                try {
+                    val toolObj = element.jsonObject
+                    ParsedTool(
+                        name = toolObj["name"]?.jsonPrimitive?.content ?: "unknown",
+                        signature = toolObj["signature"]?.jsonPrimitive?.content ?: "",
+                        doc = toolObj["doc"]?.jsonPrimitive?.content ?: ""
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Детальная информация об инструментах:",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                TextButton(onClick = onDismiss) {
+                    Text("Скрыть")
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (parsedTools != null && parsedTools.isNotEmpty()) {
+                // Отображаем распарсенные инструменты
+                parsedTools.forEachIndexed { index, tool ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${index + 1}.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = tool.name,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            if (tool.signature.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = tool.signature,
+                                    fontSize = 12.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+
+                            if (tool.doc.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = tool.doc,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+
+                    if (index < parsedTools.size - 1) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            } else {
+                // Если не удалось распарсить JSON, показываем как есть
+                Text(
+                    text = info,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .heightIn(max = 150.dp),
+                    fontSize = 12.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             }
         }
     }

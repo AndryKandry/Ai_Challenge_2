@@ -14,7 +14,12 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:mcp-framework.com)",
-      "WebFetch(domain:spec.modelcontextprotocol.io)"
+      "WebFetch(domain:spec.modelcontextprotocol.io)",
+      "Bash(chmod:*)",
+      "Bash(./setup_mcp_client.sh:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(python3:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
